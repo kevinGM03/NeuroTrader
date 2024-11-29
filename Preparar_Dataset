@@ -1,0 +1,39 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+# Cargar el dataset con señales de compra/venta
+input_file_with_labels = r'/content/drive/My Drive/PROYECTO/DATASET/Dataset_with_labels.csv'
+df = pd.read_csv(input_file_with_labels)
+
+# Definir las características y la columna de señales
+features = [
+    'SMA_15', 'SMA_60', 'RSI', 'MSD_10',  # Indicadores clave
+    'open', 'high', 'low', 'close',       # Precios OHLC
+    'quote_asset_volume', 'number_of_trades', 
+    'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume'
+]
+signal_column = 'Signal'
+
+# Verificar si las columnas necesarias están presentes
+missing_features = [col for col in features + [signal_column] if col not in df.columns]
+if missing_features:
+    raise ValueError(f"Faltan columnas en el dataset: {missing_features}")
+
+# Dividir el dataset en entrenamiento (60%), validación (10%) y prueba (30%)
+# Se mantiene el orden de los datos para preservar la naturaleza temporal
+train_val, test = train_test_split(df, test_size=0.3, shuffle=False)  # 30% para prueba
+train, val = train_test_split(train_val, test_size=0.1, shuffle=False)  # 10% para validación, 60% para entrenamiento
+
+# Guardar los conjuntos de entrenamiento y validación con las señales
+train.to_csv(r'/content/drive/My Drive/PROYECTO/DATASET_PREPARADO/train.csv', index=False)
+val.to_csv(r'/content/drive/My Drive/PROYECTO/DATASET_PREPARADO/val.csv', index=False)
+
+# El conjunto de prueba no debe incluir las señales de compra/venta
+test = test.drop(columns=[signal_column])
+test.to_csv(r'/content/drive/My Drive/PROYECTO/DATASET_PREPARADO/test.csv', index=False)
+
+print("Datos divididos y guardados en archivos CSV:")
+print(f"- Conjunto de entrenamiento: {len(train)} filas.")
+print(f"- Conjunto de validación: {len(val)} filas.")
+print(f"- Conjunto de prueba (sin señales): {len(test)} filas.")
+
