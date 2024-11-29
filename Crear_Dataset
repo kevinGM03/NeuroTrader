@@ -34,12 +34,19 @@ if all_data:
 
     # Funciones para calcular indicadores técnicos
     def calculate_indicators(df):
-        # Media Móvil (MA) de 20 y 50 periodos
-        df['MA_20'] = df['close'].rolling(window=20).mean()
-        df['MA_50'] = df['close'].rolling(window=50).mean()
+        # EMAs
+        df['EMA_9'] = df['close'].ewm(span=9, adjust=False).mean()
+        df['EMA_21'] = df['close'].ewm(span=21, adjust=False).mean()
+
+        # MACD
+        df['MACD'] = df['EMA_9'] - df['EMA_21']
+        df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
 
         # RSI de 14 periodos
         df['RSI'] = calculate_rsi(df['close'], 14)
+
+        # OBV
+        df['OBV'] = calculate_obv(df)
 
         # Bandas de Bollinger de 20 periodos
         df['Bollinger_Upper'], df['Bollinger_Lower'] = calculate_bollinger_bands(df['close'], window=20)
@@ -53,6 +60,17 @@ if all_data:
         rs = gain / loss
         return 100 - (100 / (1 + rs))
 
+    def calculate_obv(df):
+        obv = [0]
+        for i in range(1, len(df)):
+            if df['close'][i] > df['close'][i - 1]:
+                obv.append(obv[-1] + df['volume'][i])
+            elif df['close'][i] < df['close'][i - 1]:
+                obv.append(obv[-1] - df['volume'][i])
+            else:
+                obv.append(obv[-1])
+        return pd.Series(obv)
+
     def calculate_bollinger_bands(series, window=20):
         ma = series.rolling(window).mean()
         std = series.rolling(window).std()
@@ -61,24 +79,37 @@ if all_data:
         return upper_band, lower_band
 
     # Función para generar etiquetas basadas en la alineación de indicadores
-    def generate_aligned_labels(df):
-        df['Signal'] = 0  # Inicializar con "Mantener"
+    def generate_labels(df):
+        df['Signal_Initial'] = 0  # Inicializar con "Mantener"
+        df['Signal_Filtered'] = 0
+        df['Signal_Final'] = 0
 
-        # Señales de Compra: Todos los indicadores alineados para compra
+        # Señales iniciales de Compra
         df.loc[
-            (df['MA_20'] > df['MA_50']) &  # Tendencia alcista
-            (df['RSI'] < 30) &  # Sobreventa
-            (df['close'] < df['Bollinger_Lower']),  # Cerca de la banda inferior
-            'Signal'
+            (df['EMA_9'] > df['EMA_21']) &  # EMA cruz alcista
+            (df['MACD'] > df['Signal_Line']),  # MACD cruz alcista
+            'Signal_Initial'
         ] = 1  # Comprar
 
-        # Señales de Venta: Todos los indicadores alineados para venta
+        # Señales iniciales de Venta
         df.loc[
-            (df['MA_20'] < df['MA_50']) &  # Tendencia bajista
-            (df['RSI'] > 70) &  # Sobrecompra
-            (df['close'] > df['Bollinger_Upper']),  # Cerca de la banda superior
-            'Signal'
+            (df['EMA_9'] < df['EMA_21']) &  # EMA cruz bajista
+            (df['MACD'] < df['Signal_Line']),  # MACD cruz bajista
+            'Signal_Initial'
         ] = -1  # Vender
+
+        # Filtrar señales falsas (ejemplo usando RSI y OBV)
+        df.loc[
+            (df['Signal_Initial'] == 1) & (df['RSI'] < 70) & (df['OBV'] > 0),
+            'Signal_Filtered'
+        ] = 1
+        df.loc[
+            (df['Signal_Initial'] == -1) & (df['RSI'] > 30) & (df['OBV'] < 0),
+            'Signal_Filtered'
+        ] = -1
+
+        # Generar señal final
+        df['Signal_Final'] = df['Signal_Filtered']
 
         return df
 
@@ -89,7 +120,7 @@ if all_data:
     historical_data.dropna(inplace=True)
 
     # Generar etiquetas
-    historical_data = generate_aligned_labels(historical_data)
+    historical_data = generate_labels(historical_data)
 
     # Guardar el DataFrame con indicadores y etiquetas en un nuevo archivo CSV
     output_file = r'/content/drive/My Drive/PROYECTO/DATASET/Dataset_with_indicators_and_labels.csv'
