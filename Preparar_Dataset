@@ -9,7 +9,7 @@ df = pd.read_csv(input_file_with_labels)
 features = [
     'SMA_15', 'SMA_60', 'RSI', 'MSD_10',  # Indicadores clave
     'open', 'high', 'low', 'close',       # Precios OHLC
-    'quote_asset_volume', 'number_of_trades', 
+    'quote_asset_volume', 'number_of_trades',
     'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume'
 ]
 signal_column = 'Signal'
@@ -28,12 +28,21 @@ train, val = train_test_split(train_val, test_size=0.1, shuffle=False)  # 10% pa
 train.to_csv(r'/content/drive/My Drive/PROYECTO/DATASET_PREPARADO/train.csv', index=False)
 val.to_csv(r'/content/drive/My Drive/PROYECTO/DATASET_PREPARADO/val.csv', index=False)
 
-# El conjunto de prueba no debe incluir las señales de compra/venta
-test = test.drop(columns=[signal_column])
-test.to_csv(r'/content/drive/My Drive/PROYECTO/DATASET_PREPARADO/test.csv', index=False)
+# El conjunto de prueba se guarda en dos versiones
+# Versión sin las etiquetas (para predicción)
+test_without_labels = test.drop(columns=[signal_column])
+test_without_labels.to_csv(r'/content/drive/My Drive/PROYECTO/DATASET_PREPARADO/test.csv', index=False)
+
+# Versión con etiquetas (para evaluación)
+test_with_labels = test.copy()  # Conservar las señales
+test_with_labels.to_csv(r'/content/drive/My Drive/PROYECTO/EVALUACION/real.csv', index=False)
 
 print("Datos divididos y guardados en archivos CSV:")
 print(f"- Conjunto de entrenamiento: {len(train)} filas.")
 print(f"- Conjunto de validación: {len(val)} filas.")
-print(f"- Conjunto de prueba (sin señales): {len(test)} filas.")
+print(f"- Conjunto de prueba (sin señales): {len(test_without_labels)} filas.")
+print(f"- Conjunto de prueba (con señales): {len(test_with_labels)} filas.")
+
+
+
 
