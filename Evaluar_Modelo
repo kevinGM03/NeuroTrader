@@ -1,0 +1,51 @@
+import pandas as pd
+import numpy as np
+from keras.models import load_model
+from sklearn.metrics import classification_report, confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Cargar el modelo
+modelo_path = '/content/drive/My Drive/PROYECTO/mi_modelo.h5'
+model = load_model(modelo_path)
+
+# Cargar el conjunto de prueba con y sin etiquetas
+test_file = '/content/drive/My Drive/PROYECTO/DATASET_PREPARADO/test.csv'
+real_file = '/content/drive/My Drive/PROYECTO/EVALUACION/real.csv'
+
+df_test = pd.read_csv(test_file)
+df_real = pd.read_csv(real_file)
+
+# Seleccionar características y etiquetas reales
+X_test = df_test.iloc[:, [1, 2, 3, 4, 5, 12, 13, 14, 15, 16]].values
+X_test = StandardScaler().fit_transform(X_test)  # Normalizar igual que en el entrenamiento
+
+y_real = np.where(df_real['Signal'] == -1, 2, df_real['Signal'].values)  # Etiquetas reales
+
+# Generar predicciones
+predictions = model.predict(X_test)
+predicted_classes = np.argmax(predictions, axis=1)
+
+# Evaluar el rendimiento
+cm = confusion_matrix(y_real, predicted_classes)
+print("Matriz de confusión ajustada:")
+print(cm)
+
+# Reporte de clasificación
+report = classification_report(y_real, predicted_classes, target_names=["Clase 0", "Clase 1", "Clase 2"])
+print("\nReporte de clasificación:")
+print(report)
+
+# Guardar resultados en un archivo CSV
+resultados = df_real.copy()
+resultados['Predicción'] = predicted_classes
+resultados.to_csv('/content/drive/My Drive/PROYECTO/EVALUACION/comparacion.csv', index=False)
+print("Comparación guardada en: /content/drive/My Drive/PROYECTO/EVALUACION/comparacion.csv")
+
+# Visualización de la matriz de confusión
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=["Clase 0", "Clase 1", "Clase 2"], yticklabels=["Clase 0", "Clase 1", "Clase 2"])
+plt.title('Matriz de Confusión')
+plt.xlabel('Predicción')
+plt.ylabel('Etiqueta Real')
+plt.show()
