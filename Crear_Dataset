@@ -61,7 +61,7 @@ if all_data:
     historical_data.dropna(inplace=True)
 
     # Guardar el DataFrame con indicadores en un nuevo archivo CSV
-    output_file = r'/content/drive/My Drive/PROYECTO/DATASET/Dataset_with_indicators.csv'
+    output_file = r'/content/drive/My Drive/PROYECTO/DATASET/Dataset_with_indicators.csv' 
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     historical_data.to_csv(output_file, index=False)
     print(f"Archivo con indicadores técnicos guardado como '{output_file}'")
