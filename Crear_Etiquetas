@@ -7,7 +7,7 @@ df = pd.read_csv(input_file)
 # Función para generar etiquetas de señales de compra/venta de manera óptima
 def generate_optimized_labels(df):
     df['Signal'] = 0  # Inicializar con "Mantener"
-    last_signal = 0  # Variable para rastrear la última señal registrada (1 = compra, -1 = venta, 0 = neutral)
+    last_signal = 0  # Variable para rastrear la última señal registrada (1 = compra, 2 = venta, 0 = neutral)
 
     # Iterar sobre las filas del DataFrame
     for i in range(len(df)):
@@ -21,15 +21,15 @@ def generate_optimized_labels(df):
             df.loc[i, 'Signal'] = 1
             last_signal = 1  # Actualizar la última señal como compra
 
-        # Evaluar condiciones para una señal de venta
+        # Evaluar condiciones para una señal de venta (reemplazado -1 por 2)
         elif (
-            (last_signal != -1) &  # No permitir ventas consecutivas
+            (last_signal != 2) &  # No permitir ventas consecutivas
             (df.loc[i, 'SMA_15'] < df.loc[i, 'SMA_60']) &  # Tendencia bajista
             (df.loc[i, 'RSI'] > 70) &  # Sobrecompra
             (df.loc[i, 'close'] > (df.loc[i, 'SMA_15'] + df.loc[i, 'MSD_10']))  # Cerca de nivel alto
         ):
-            df.loc[i, 'Signal'] = -1
-            last_signal = -1  # Actualizar la última señal como venta
+            df.loc[i, 'Signal'] = 2  # Reemplazado -1 por 2
+            last_signal = 2  # Actualizar la última señal como venta
 
     return df
 
@@ -40,5 +40,8 @@ df = generate_optimized_labels(df)
 output_file_with_labels = r'/content/drive/My Drive/PROYECTO/DATASET/Dataset_with_labels.csv'
 df.to_csv(output_file_with_labels, index=False)
 print(f"Archivo con señales de compra/venta guardado como '{output_file_with_labels}'")
+
+
+
 
  
