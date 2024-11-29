@@ -1,0 +1,100 @@
+import os
+import pandas as pd
+
+# Ruta del directorio raíz que contiene las carpetas por año
+root_folder = r'/content/drive/My Drive/PROYECTO/DATOS HISTORICOS'
+
+# Crear una lista para almacenar todos los DataFrames
+all_data = []
+
+# Recorrer las carpetas de cada año
+for year_folder in os.listdir(root_folder):
+    year_path = os.path.join(root_folder, year_folder)
+
+    # Verificar si es una carpeta
+    if os.path.isdir(year_path):
+        # Recorrer los archivos dentro de la carpeta del año
+        for file_name in os.listdir(year_path):
+            if file_name.endswith('.csv'):
+                file_path = os.path.join(year_path, file_name)
+
+                # Leer el archivo CSV
+                df = pd.read_csv(file_path)
+
+                # Agregar los datos al conjunto
+                all_data.append(df)
+
+# Combinar todos los DataFrames en uno solo
+if all_data:
+    historical_data = pd.concat(all_data, ignore_index=True)
+
+    # Asegúrate de que los datos estén ordenados por el tiempo
+    historical_data.sort_values(by='timestamp', inplace=True)
+    historical_data.reset_index(drop=True, inplace=True)
+
+    # Funciones para calcular indicadores técnicos
+    def calculate_indicators(df):
+        # Media Móvil (MA) de 20 y 50 periodos
+        df['MA_20'] = df['close'].rolling(window=20).mean()
+        df['MA_50'] = df['close'].rolling(window=50).mean()
+
+        # RSI de 14 periodos
+        df['RSI'] = calculate_rsi(df['close'], 14)
+
+        # Bandas de Bollinger de 20 periodos
+        df['Bollinger_Upper'], df['Bollinger_Lower'] = calculate_bollinger_bands(df['close'], window=20)
+
+        return df
+
+    def calculate_rsi(series, period=14):
+        delta = series.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+        rs = gain / loss
+        return 100 - (100 / (1 + rs))
+
+    def calculate_bollinger_bands(series, window=20):
+        ma = series.rolling(window).mean()
+        std = series.rolling(window).std()
+        upper_band = ma + (std * 2)
+        lower_band = ma - (std * 2)
+        return upper_band, lower_band
+
+    # Función para generar etiquetas basadas en la alineación de indicadores
+    def generate_aligned_labels(df):
+        df['Signal'] = 0  # Inicializar con "Mantener"
+
+        # Señales de Compra: Todos los indicadores alineados para compra
+        df.loc[
+            (df['MA_20'] > df['MA_50']) &  # Tendencia alcista
+            (df['RSI'] < 30) &  # Sobreventa
+            (df['close'] < df['Bollinger_Lower']),  # Cerca de la banda inferior
+            'Signal'
+        ] = 1  # Comprar
+
+        # Señales de Venta: Todos los indicadores alineados para venta
+        df.loc[
+            (df['MA_20'] < df['MA_50']) &  # Tendencia bajista
+            (df['RSI'] > 70) &  # Sobrecompra
+            (df['close'] > df['Bollinger_Upper']),  # Cerca de la banda superior
+            'Signal'
+        ] = -1  # Vender
+
+        return df
+
+    # Aplicar el cálculo de indicadores
+    historical_data = calculate_indicators(historical_data)
+
+    # Eliminar filas con valores faltantes
+    historical_data.dropna(inplace=True)
+
+    # Generar etiquetas
+    historical_data = generate_aligned_labels(historical_data)
+
+    # Guardar el DataFrame con indicadores y etiquetas en un nuevo archivo CSV
+    output_file = r'/content/drive/My Drive/PROYECTO/DATASET/Dataset_with_indicators_and_labels.csv'
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    historical_data.to_csv(output_file, index=False)
+    print(f"Archivo con indicadores técnicos y etiquetas guardado como '{output_file}'")
+else:
+    print("No se encontraron datos para procesar.")
