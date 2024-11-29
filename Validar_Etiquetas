@@ -38,8 +38,8 @@ def backtest_strategy_with_plot(df, initial_balance=10000, sample_rate=1000, out
                 'profit_loss': 0  # No hay profit/loss al comprar
             })
 
-        # Vender
-        elif signal == -1 and position > 0:
+        # Vender (reemplazando -1 por 2)
+        elif signal == 2 and position > 0:  # Cambié -1 por 2 aquí
             balance = position * price  # Obtener efectivo por la venta
             profit_loss = (price - cost_basis) * position  # Beneficio/pérdida de la posición
             position = 0  # Ya no tenemos activos
@@ -115,8 +115,6 @@ if __name__ == "__main__":
     invalid_signals = historical_data[(historical_data['Signal'] == 1) & (historical_data['Signal'].shift(1) == 1)]
     print(f"Señales consecutivas de compra: {len(invalid_signals)}")
 
-    invalid_signals = historical_data[(historical_data['Signal'] == -1) & (historical_data['Signal'].shift(1) == -1)]
+    invalid_signals = historical_data[(historical_data['Signal'] == 2) & (historical_data['Signal'].shift(1) == 2)]  # Cambié -1 por 2 aquí también
     print(f"Señales consecutivas de venta: {len(invalid_signals)}")
-
-
 
