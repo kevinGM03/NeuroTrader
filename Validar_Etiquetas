@@ -1,13 +1,14 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def backtest_strategy_with_plot(df, initial_balance=10000, sample_rate=1000):
+def backtest_strategy_with_plot(df, initial_balance=10000, sample_rate=1000, output_csv='operations_log.csv'):
     """
-    Backtesting y visualización del portafolio.
+    Backtesting y visualización del portafolio, guardando las operaciones y beneficios en un archivo CSV.
     Args:
         df: DataFrame con datos históricos y señales.
         initial_balance: Saldo inicial en USD.
         sample_rate: Frecuencia de muestreo para graficar.
+        output_csv: Nombre del archivo CSV para guardar las operaciones.
     Returns:
         final_value: Valor final del portafolio.
     """
@@ -15,28 +16,54 @@ def backtest_strategy_with_plot(df, initial_balance=10000, sample_rate=1000):
     position = 0  # Cantidad de activos comprados
     portfolio_values = []  # Lista para almacenar el valor del portafolio
     timestamps = []  # Lista para almacenar los momentos en el tiempo
+    operations_log = []  # Lista para almacenar las operaciones de compra/venta
+    cost_basis = 0  # Precio promedio de compra para calcular profit/loss
 
     for index, row in df.iterrows():
         signal = row['Signal']
         price = row['close']
+        timestamp = row['timestamp']
 
         # Comprar
         if signal == 1 and balance > 0:
             position = balance / price  # Comprar con todo el balance
+            cost_basis = price  # Guardar el precio de compra
             balance = 0  # El balance en efectivo se convierte en 0
+            operations_log.append({
+                'timestamp': timestamp,
+                'operation': 'BUY',
+                'price': price,
+                'balance': balance,
+                'position': position,
+                'profit_loss': 0  # No hay profit/loss al comprar
+            })
 
         # Vender
         elif signal == -1 and position > 0:
-            balance = position * price  # Vender todas las posiciones
+            balance = position * price  # Obtener efectivo por la venta
+            profit_loss = (price - cost_basis) * position  # Beneficio/pérdida de la posición
             position = 0  # Ya no tenemos activos
+            operations_log.append({
+                'timestamp': timestamp,
+                'operation': 'SELL',
+                'price': price,
+                'balance': balance,
+                'position': position,
+                'profit_loss': profit_loss  # Calcular el profit/loss de la venta
+            })
 
         # Calcular el valor actual del portafolio (efectivo + posiciones)
         portfolio_value = balance + (position * price)
         portfolio_values.append(portfolio_value)
-        timestamps.append(row['timestamp'])
+        timestamps.append(timestamp)
 
     # Cerrar posición al final
     final_value = balance + (position * df.iloc[-1]['close'])
+
+    # Guardar las operaciones en un CSV
+    operations_df = pd.DataFrame(operations_log)
+    operations_df.to_csv(output_csv, index=False)
+    print(f"Operaciones guardadas en '{output_csv}'")
 
     # Muestreo para graficar
     sampled_timestamps = timestamps[::sample_rate]
@@ -67,7 +94,12 @@ if __name__ == "__main__":
         print("Dataset cargado exitosamente.")
 
         # Realizar el backtest
-        final_balance = backtest_strategy_with_plot(historical_data, sample_rate=2000)
+        final_balance = backtest_strategy_with_plot(
+            historical_data,
+            initial_balance=10000,
+            sample_rate=2000,
+            output_csv='/content/drive/My Drive/PROYECTO/DATASET/operations_log.csv'
+        )
         print(f"Balance final después de la estrategia: ${final_balance:.2f}")
 
     except FileNotFoundError:
@@ -75,15 +107,16 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Ocurrió un error: {e}")
 
+    # Contar las señales
+    print("Resumen de las señales generadas:")
+    print(historical_data['Signal'].value_counts())
 
-# Contar las señales
-print("Resumen de las señales generadas:")
-print(historical_data['Signal'].value_counts())
+    # Revisar patrones problemáticos
+    invalid_signals = historical_data[(historical_data['Signal'] == 1) & (historical_data['Signal'].shift(1) == 1)]
+    print(f"Señales consecutivas de compra: {len(invalid_signals)}")
 
-# Revisar patrones problemáticos
-invalid_signals = historical_data[(historical_data['Signal'] == 1) & (historical_data['Signal'].shift(1) == 1)]
-print(f"Señales consecutivas de compra: {len(invalid_signals)}")
+    invalid_signals = historical_data[(historical_data['Signal'] == -1) & (historical_data['Signal'].shift(1) == -1)]
+    print(f"Señales consecutivas de venta: {len(invalid_signals)}")
 
-invalid_signals = historical_data[(historical_data['Signal'] == -1) & (historical_data['Signal'].shift(1) == -1)]
-print(f"Señales consecutivas de venta: {len(invalid_signals)}")
+
 
