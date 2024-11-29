@@ -1,0 +1,71 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from keras.models import Sequential
+from keras.layers import Dense, Input
+from keras.optimizers import Adam
+
+# Cargar el dataset
+input_file_train = r'/content/drive/My Drive/PROYECTO/DATASET_PREPARADO/train.csv'
+input_file_val = r'/content/drive/My Drive/PROYECTO/DATASET_PREPARADO/val.csv'
+
+# Leer datos
+train_data = pd.read_csv(input_file_train)
+val_data = pd.read_csv(input_file_val)
+
+# Seleccionar características y etiquetas
+X_train = train_data.iloc[:, [1, 2, 3, 4, 5, 12, 13, 14, 15, 16]].values
+y_train = train_data.iloc[:, 17].values
+
+X_val = val_data.iloc[:, [1, 2, 3, 4, 5, 12, 13, 14, 15, 16]].values
+y_val = val_data.iloc[:, 17].values
+
+# Reasignar etiquetas para que sean positivas (0, 1, 2)
+y_train = np.where(y_train == -1, 2, y_train)
+y_val = np.where(y_val == -1, 2, y_val)
+
+# Normalizar las características
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_val = scaler.transform(X_val)
+
+# Crear el modelo
+model = Sequential([
+    Input(shape=(10,)),  # 10 características
+    Dense(128, activation="relu"),
+    Dense(64, activation="relu"),
+    Dense(32, activation="relu"),
+    Dense(3, activation="softmax")  # 3 salidas para las clases [0, 1, 2]
+])
+
+# Compilar el modelo
+model.compile(
+    optimizer=Adam(learning_rate=0.0001),  # Tasa de aprendizaje ajustada
+    loss="sparse_categorical_crossentropy",  # Pérdida para clasificación multiclase
+    metrics=["accuracy"]
+)
+
+# Entrenar el modelo
+history = model.fit(
+    X_train,
+    y_train,
+    validation_data=(X_val, y_val),  # Validación durante el entrenamiento
+    batch_size=32,
+    epochs=45,
+    verbose=1
+)
+
+# Evaluar en el conjunto de validación
+loss, accuracy = model.evaluate(X_val, y_val)
+print(f"Pérdida en validación: {loss:.4f}")
+print(f"Precisión en validación: {accuracy:.4f}")
+
+model.save('/content/drive/My Drive/PROYECTO/mi_modelo.h5')
+
+
+plt.xlabel ("#Epocas")
+plt.ylabel ("Magnitud de perdidas")
+
+plt.plot(history.history['loss'])
