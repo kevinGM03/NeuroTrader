@@ -1,0 +1,89 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+def backtest_strategy_with_plot(df, initial_balance=10000, sample_rate=1000):
+    """
+    Backtesting y visualización del portafolio.
+    Args:
+        df: DataFrame con datos históricos y señales.
+        initial_balance: Saldo inicial en USD.
+        sample_rate: Frecuencia de muestreo para graficar.
+    Returns:
+        final_value: Valor final del portafolio.
+    """
+    balance = initial_balance  # Dinero disponible inicialmente
+    position = 0  # Cantidad de activos comprados
+    portfolio_values = []  # Lista para almacenar el valor del portafolio
+    timestamps = []  # Lista para almacenar los momentos en el tiempo
+
+    for index, row in df.iterrows():
+        signal = row['Signal']
+        price = row['close']
+
+        # Comprar
+        if signal == 1 and balance > 0:
+            position = balance / price  # Comprar con todo el balance
+            balance = 0  # El balance en efectivo se convierte en 0
+
+        # Vender
+        elif signal == -1 and position > 0:
+            balance = position * price  # Vender todas las posiciones
+            position = 0  # Ya no tenemos activos
+
+        # Calcular el valor actual del portafolio (efectivo + posiciones)
+        portfolio_value = balance + (position * price)
+        portfolio_values.append(portfolio_value)
+        timestamps.append(row['timestamp'])
+
+    # Cerrar posición al final
+    final_value = balance + (position * df.iloc[-1]['close'])
+
+    # Muestreo para graficar
+    sampled_timestamps = timestamps[::sample_rate]
+    sampled_values = portfolio_values[::sample_rate]
+
+    # Graficar
+    plt.figure(figsize=(12, 6))
+    plt.plot(sampled_timestamps, sampled_values, label='Valor del Portafolio', color='blue', linewidth=2)
+    plt.xlabel('Tiempo')
+    plt.ylabel('Valor del Portafolio (USD)')
+    plt.title('Evolución del Portafolio durante el Backtesting')
+    plt.legend()
+    plt.grid()
+    plt.xticks(rotation=45)
+    plt.gca().xaxis.set_major_locator(plt.MaxNLocator(10))  # Reducir cantidad de ticks en eje X
+    plt.tight_layout()
+    plt.show()
+
+    return final_value
+
+if __name__ == "__main__":
+    # Ruta al dataset
+    dataset_path = "/content/drive/My Drive/PROYECTO/DATASET/Dataset_with_labels.csv"
+
+    # Cargar el dataset
+    try:
+        historical_data = pd.read_csv(dataset_path)
+        print("Dataset cargado exitosamente.")
+
+        # Realizar el backtest
+        final_balance = backtest_strategy_with_plot(historical_data, sample_rate=2000)
+        print(f"Balance final después de la estrategia: ${final_balance:.2f}")
+
+    except FileNotFoundError:
+        print(f"Error: No se encontró el archivo en la ruta {dataset_path}.")
+    except Exception as e:
+        print(f"Ocurrió un error: {e}")
+
+
+# Contar las señales
+print("Resumen de las señales generadas:")
+print(historical_data['Signal'].value_counts())
+
+# Revisar patrones problemáticos
+invalid_signals = historical_data[(historical_data['Signal'] == 1) & (historical_data['Signal'].shift(1) == 1)]
+print(f"Señales consecutivas de compra: {len(invalid_signals)}")
+
+invalid_signals = historical_data[(historical_data['Signal'] == -1) & (historical_data['Signal'].shift(1) == -1)]
+print(f"Señales consecutivas de venta: {len(invalid_signals)}")
+
