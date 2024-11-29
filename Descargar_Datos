@@ -14,7 +14,7 @@ if os.path.exists(output_folder):
     print(f"La carpeta de destino existe: {output_folder}")
 
     # Fechas de inicio y configuración
-    start_year = 2019
+    start_year = 2021
     start_month = 1
     end_year = datetime.now().year
     end_month = datetime.now().month
